@@ -81,7 +81,7 @@ jobs:
           if [ "$IS_BETTER" -eq 1 ]; then
             echo "Metric improved!"
             echo "improved=true" >> $GITHUB_OUTPUT
-            echo "NEW_BEST_METRIC=$CURRENT_METRIC" >> $GITHUB_ENV
+            
           else
             echo "2022BCD0013----Metric did not improve"
             echo "improved=false" >> $GITHUB_OUTPUT
