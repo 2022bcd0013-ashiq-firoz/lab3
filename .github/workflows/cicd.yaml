@@ -107,9 +107,4 @@ jobs:
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/wine-quality-app:latest
 
-      - name: Update Baseline
-        if: steps.compare.outputs.improved == 'true'
-        run: |
-          gh variable set BEST_Metric --body "${{ steps.compare.outputs.new_best_metric }}"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_VARIABLE_UPDATE_TOKEN || secrets.GITHUB_TOKEN }}
+     
