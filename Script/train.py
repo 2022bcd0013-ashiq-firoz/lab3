@@ -81,7 +81,7 @@ data = {
     "Feature-Selection-Method": "correlation-based",
     "Train/Test-Split" : "80-20" ,
     "MSE" : mse_value,
-    "R^2 Score" : r2_score_value
+    "accuracy" : r2_score_value
 }
 
 filename = 'output/metrics.json'

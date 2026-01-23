@@ -32,15 +32,13 @@ jobs:
       - name: Capture Metrics
         id: capture_metrics
         run: |
-          # The script appends to output/metrics.json, so we take the last element
-          METRIC=$(jq -r '.[-1]."R^2 Score"' output/metrics.json)
-          echo "CURRENT_METRIC=$METRIC" >> $GITHUB_ENV
+          # Read accuracy from metrics.json (last entry)
+          METRIC=$(jq -r '.[-1]."accuracy"' output/metrics.json)
           echo "metric=$METRIC" >> $GITHUB_OUTPUT
-          echo "Current Metric captured: $METRIC"
+          echo "Current Accuracy captured: $METRIC"
 
       - name: Prepare Artifacts
         run: |
-          # app.py and dockerfile expect the model in this specific folder
           mkdir -p training-artifacts-py3.11
           cp output/model-linear-exp1.pkl training-artifacts-py3.11/
           cp output/metrics.json training-artifacts-py3.11/
@@ -70,23 +68,28 @@ jobs:
         env:
           BEST_METRIC: ${{ vars.BEST_Metric || 0 }}
         run: |
-          # Get current metric from downloaded artifacts
-          CURRENT_METRIC=$(jq -r '.[-1]."R^2 Score"' training-artifacts-py3.11/metrics.json)
-          echo "Current Metric: $CURRENT_METRIC"
-          echo "Best Metric: $BEST_METRIC"
+          python -c "
+          import json, os, sys
           
-          # Floating point comparison using bc
-          IS_BETTER=$(echo "$CURRENT_METRIC > $BEST_METRIC" | bc -l)
+          with open('training-artifacts-py3.11/metrics.json', 'r') as f:
+              data = json.load(f)
           
-          if [ "$IS_BETTER" -eq 1 ]; then
-            echo "Metric improved!"
-            echo "improved=true" >> $GITHUB_OUTPUT
-            
-          else
-            echo "2022BCD0013----Metric did not improve"
-            echo "improved=false" >> $GITHUB_OUTPUT
-            exit 1
-          fi
+          current_metric = float(data[-1]['accuracy'])
+          best_metric = float(os.environ.get('BEST_METRIC', 0))
+          
+          print(f'Current Accuracy: {current_metric}')
+          print(f'Best Accuracy: {best_metric}')
+          
+          if current_metric > best_metric:
+              print('Metric improved!')
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                  f.write(f'improved=true\nnew_best_metric={current_metric}\n')
+          else:
+              print('2022BCD0013----Metric did not improve')
+              with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                  f.write('improved=false\n')
+              sys.exit(1)
+          "
 
       - name: Login to Docker Hub
         if: steps.compare.outputs.improved == 'true'
@@ -107,6 +110,6 @@ jobs:
       - name: Update Baseline
         if: steps.compare.outputs.improved == 'true'
         run: |
-          gh variable set BEST_Metric --body "${{ env.NEW_BEST_METRIC }}"
+          gh variable set BEST_Metric --body "${{ steps.compare.outputs.new_best_metric }}"
         env:
           GITHUB_TOKEN: ${{ secrets.GH_VARIABLE_UPDATE_TOKEN || secrets.GITHUB_TOKEN }}
