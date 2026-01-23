@@ -1,4 +1,4 @@
-# Lab 2: Automated Training and Metric Reporting Using GitHub Actions
+# Lab 4: Automated Training and Metric Reporting Using GitHub Actions
 
 This lab introduces CI-driven machine learning workflows using GitHub Actions.
 For each modification in model code for each experiment, push changes to GitHub,
