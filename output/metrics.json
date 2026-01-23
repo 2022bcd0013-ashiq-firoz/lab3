@@ -1,0 +1,12 @@
+[
+    {
+        "Experiment ID": "Exp-01",
+        "Model Type": "Linear Regression",
+        "Hyperparameters": "Default",
+        "Preprocessing-Steps": null,
+        "Feature-Selection-Method": "All Selected",
+        "Train/Test-Split": "80-20",
+        "MSE": 0.5466964419594447,
+        "R^2 Score": 0.2597673129771393
+    }
+]

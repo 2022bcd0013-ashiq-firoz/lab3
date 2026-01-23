@@ -1,0 +1,112 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+jobs:
+  train:
+    name: train (Continuous Integration)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Training Script
+        run: |
+          mkdir -p output
+          python Script/train.py
+
+      - name: Capture Metrics
+        id: capture_metrics
+        run: |
+          # The script appends to output/metrics.json, so we take the last element
+          METRIC=$(jq -r '.[-1]."R^2 Score"' output/metrics.json)
+          echo "CURRENT_METRIC=$METRIC" >> $GITHUB_ENV
+          echo "metric=$METRIC" >> $GITHUB_OUTPUT
+          echo "Current Metric captured: $METRIC"
+
+      - name: Prepare Artifacts
+        run: |
+          # app.py and dockerfile expect the model in this specific folder
+          mkdir -p training-artifacts-py3.11
+          cp output/model-linear-exp1.pkl training-artifacts-py3.11/
+          cp output/metrics.json training-artifacts-py3.11/
+
+      - name: Upload Model and Metrics
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-artifacts
+          path: training-artifacts-py3.11/
+
+  deploy:
+    name: deploy (Continuous Deployment)
+    needs: train
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: model-artifacts
+          path: training-artifacts-py3.11/
+
+      - name: Compare Metrics
+        id: compare
+        env:
+          BEST_METRIC: ${{ vars.BEST_Metric || 0 }}
+        run: |
+          # Get current metric from downloaded artifacts
+          CURRENT_METRIC=$(jq -r '.[-1]."R^2 Score"' training-artifacts-py3.11/metrics.json)
+          echo "Current Metric: $CURRENT_METRIC"
+          echo "Best Metric: $BEST_METRIC"
+          
+          # Floating point comparison using bc
+          IS_BETTER=$(echo "$CURRENT_METRIC > $BEST_METRIC" | bc -l)
+          
+          if [ "$IS_BETTER" -eq 1 ]; then
+            echo "Metric improved!"
+            echo "improved=true" >> $GITHUB_OUTPUT
+            echo "NEW_BEST_METRIC=$CURRENT_METRIC" >> $GITHUB_ENV
+          else
+            echo "2022BCD0013----Metric did not improve"
+            echo "improved=false" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+      - name: Login to Docker Hub
+        if: steps.compare.outputs.improved == 'true'
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and Publish Image
+        if: steps.compare.outputs.improved == 'true'
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./dockerfile
+          push: true
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/wine-quality-app:latest
+
+      - name: Update Baseline
+        if: steps.compare.outputs.improved == 'true'
+        run: |
+          gh variable set BEST_Metric --body "${{ env.NEW_BEST_METRIC }}"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_VARIABLE_UPDATE_TOKEN || secrets.GITHUB_TOKEN }}
