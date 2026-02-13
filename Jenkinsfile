@@ -35,7 +35,7 @@ pipeline {
             steps {
                 sh '''
                     . $VENV_DIR/bin/activate
-                    mkdir -p output
+                    mkdir -p training-artifacts-py3.11
                     python Script/train.py
                 '''
             }
@@ -45,13 +45,13 @@ pipeline {
             steps {
                 script {
                     // Verify files exist before archiving
-                    sh 'ls -la output/'
+                    sh 'ls -la training-artifacts-py3.11/'
                     
                     // Archive the trained model files
-                    archiveArtifacts artifacts: 'output/**/*', allowEmptyArchive: false
+                    archiveArtifacts artifacts: 'training-artifacts-py3.11/**/*', allowEmptyArchive: false
                     
                     // Stash for use in later stages
-                    stash includes: 'output/**/*', name: 'model-artifacts'
+                    stash includes: 'training-artifacts-py3.11/**/*', name: 'model-artifacts'
                     
                     echo "Model artifacts archived successfully"
                 }
