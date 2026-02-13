@@ -3,12 +3,12 @@ pipeline {
 
     environment {
         VENV_DIR = "venv"
-        METRICS_FILE = "output/metrics.json"  // CHANGED
+        METRICS_FILE = "training-artifacts-py3.11/metrics.json"  // CHANGED
         BEST_ACCURACY_FILE = "best-accuracy"
         DOCKER_IMAGE = "2022bcd0013ashiqfiroz/wine-quality-app-jenkins"
         CURRENT_ACCURACY = "0"
         MODEL_IMPROVED = "false"
-        ARTIFACTS_DIR = "output"  // CHANGED to match your script
+        ARTIFACTS_DIR = "training-artifacts-py3.11"  // CHANGED to match your script
     }
 
     stages {
