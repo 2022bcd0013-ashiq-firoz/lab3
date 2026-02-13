@@ -17,7 +17,7 @@ pipeline {
         /* ----------------------------- */
             steps {
                 git branch: 'main',
-                    url: 'https://github.com/2022bcd0013-ashiq-firoz/your-repo.git'
+                    url: 'https://github.com/2022bcd0013-ashiq-firoz/lab3.git'
             }
         }
 
