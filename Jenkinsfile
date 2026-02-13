@@ -6,7 +6,7 @@ pipeline {
         METRICS_FILE = "app/artifacts/metrics.json"
         BEST_ACCURACY_FILE = "best-accuracy"
         DOCKER_IMAGE = "2022bcd0013ashiqfiroz/wine-quality-app-jenkins"
-        CURRENT_ACCURACY = ""
+        CURRENT_ACCURACY = "0"
         MODEL_IMPROVED = "false"
     }
 
@@ -51,10 +51,19 @@ pipeline {
         /* ---------------------- */
             steps {
                 script {
+
+                    if (!fileExists(env.METRICS_FILE)) {
+                        error "Metrics file not found at ${env.METRICS_FILE}. Training failed."
+                    }
+
                     def accuracy = sh(
                         script: "jq -r '.[-1].accuracy' ${METRICS_FILE}",
                         returnStdout: true
                     ).trim()
+
+                    if (!accuracy || accuracy == "null") {
+                        error "Accuracy value not found in metrics.json"
+                    }
 
                     env.CURRENT_ACCURACY = accuracy
                     echo "Current Accuracy: ${env.CURRENT_ACCURACY}"
@@ -67,13 +76,18 @@ pipeline {
         /* -------------------------- */
             steps {
                 script {
+
                     def bestAccuracy = "0"
 
                     if (fileExists(env.BEST_ACCURACY_FILE)) {
                         bestAccuracy = readFile(env.BEST_ACCURACY_FILE).trim()
+                        echo "Existing Best Accuracy: ${bestAccuracy}"
+                    } else {
+                        echo "No baseline found. First run — auto-promoting model."
+                        writeFile file: env.BEST_ACCURACY_FILE, text: env.CURRENT_ACCURACY
+                        env.MODEL_IMPROVED = "true"
+                        return
                     }
-
-                    echo "Best Accuracy: ${bestAccuracy}"
 
                     if (env.CURRENT_ACCURACY.toFloat() > bestAccuracy.toFloat()) {
                         echo "Model Improved!"
