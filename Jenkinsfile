@@ -127,7 +127,7 @@ pipeline {
                     unstash 'model-artifacts'
                     
                     // Verify files are present
-                    sh 'ls -la output/'
+                    sh 'ls -la training-artifacts-py3.11/'
                     
                     docker.withRegistry('', 'dockerhub-creds') {
                         sh """
