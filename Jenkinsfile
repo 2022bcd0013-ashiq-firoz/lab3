@@ -3,12 +3,12 @@ pipeline {
 
     environment {
         VENV_DIR = "venv"
-        METRICS_FILE = "app/artifacts/metrics.json"
+        METRICS_FILE = "output/metrics.json"  // CHANGED
         BEST_ACCURACY_FILE = "best-accuracy"
         DOCKER_IMAGE = "2022bcd0013ashiqfiroz/wine-quality-app-jenkins"
         CURRENT_ACCURACY = "0"
         MODEL_IMPROVED = "false"
-        ARTIFACTS_DIR = "training-artifacts-py3.11"
+        ARTIFACTS_DIR = "output"  // CHANGED to match your script
     }
 
     stages {
@@ -35,22 +35,25 @@ pipeline {
             steps {
                 sh '''
                     . $VENV_DIR/bin/activate
-                    mkdir -p app/artifacts
-                    mkdir -p ${ARTIFACTS_DIR}
+                    mkdir -p output
                     python Script/train.py
                 '''
             }
         }
 
-        // NEW: Archive model artifacts
         stage('Archive Model Artifacts') {
             steps {
                 script {
-                    // Archive the trained model files
-                    archiveArtifacts artifacts: "${ARTIFACTS_DIR}/**/*", allowEmptyArchive: false
+                    // Verify files exist before archiving
+                    sh 'ls -la output/'
                     
-                    // Also stash for use in later stages
-                    stash includes: "${ARTIFACTS_DIR}/**/*", name: 'model-artifacts'
+                    // Archive the trained model files
+                    archiveArtifacts artifacts: 'output/**/*', allowEmptyArchive: false
+                    
+                    // Stash for use in later stages
+                    stash includes: 'output/**/*', name: 'model-artifacts'
+                    
+                    echo "Model artifacts archived successfully"
                 }
             }
         }
@@ -116,12 +119,15 @@ pipeline {
 
         stage('Build Docker Image') {
             when {
-                expression { env.MODEL_IMPROVED == "false" }  // FIXED: was "false"
+                expression { env.MODEL_IMPROVED == "false" }
             }
             steps {
                 script {
                     // Unstash model artifacts before building
                     unstash 'model-artifacts'
+                    
+                    // Verify files are present
+                    sh 'ls -la output/'
                     
                     docker.withRegistry('', 'dockerhub-creds') {
                         sh """
@@ -135,7 +141,7 @@ pipeline {
 
         stage('Push Docker Image') {
             when {
-                expression { env.MODEL_IMPROVED == "false" }  // FIXED: was "false"
+                expression { env.MODEL_IMPROVED == "false" }
             }
             steps {
                 script {
