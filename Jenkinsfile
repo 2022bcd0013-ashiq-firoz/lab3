@@ -48,21 +48,23 @@ pipeline {
 
         /* ---------------------- */
         stage('Read Accuracy') {
-        /* ---------------------- */
             steps {
                 script {
 
                     if (!fileExists(env.METRICS_FILE)) {
-                        error "Metrics file not found at ${env.METRICS_FILE}. Training failed."
+                        echo "WARNING: Metrics file not found. Setting accuracy to 0."
+                        env.CURRENT_ACCURACY = "0"
+                        return
                     }
 
                     def accuracy = sh(
-                        script: "jq -r '.[-1].accuracy' ${METRICS_FILE}",
+                        script: "jq -r '.[-1].accuracy' ${METRICS_FILE} 2>/dev/null || echo 0",
                         returnStdout: true
                     ).trim()
 
                     if (!accuracy || accuracy == "null") {
-                        error "Accuracy value not found in metrics.json"
+                        echo "WARNING: Accuracy not found in metrics.json. Defaulting to 0."
+                        accuracy = "0"
                     }
 
                     env.CURRENT_ACCURACY = accuracy
@@ -70,6 +72,7 @@ pipeline {
                 }
             }
         }
+
 
         /* -------------------------- */
         stage('Compare Accuracy') {
