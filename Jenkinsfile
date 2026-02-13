@@ -105,6 +105,7 @@ pipeline {
                     }
 
                     echo "MODEL_IMPROVED = ${env.MODEL_IMPROVED}"
+                    env.MODEL_IMPROVED = "true"
                 }
             }
         }
