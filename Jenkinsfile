@@ -105,7 +105,7 @@ pipeline {
                     }
 
                     echo "MODEL_IMPROVED = ${env.MODEL_IMPROVED}"
-                    env.MODEL_IMPROVED = "true"
+                    
                 }
             }
         }
@@ -115,7 +115,7 @@ pipeline {
         stage('Build Docker Image') {
         /* ----------------------------------------- */
             when {
-                expression { env.MODEL_IMPROVED == "true" }
+                expression { env.MODEL_IMPROVED == "false" }
             }
             steps {
                 script {
@@ -133,7 +133,7 @@ pipeline {
         stage('Push Docker Image') {
         /* ----------------------------------------- */
             when {
-                expression { env.MODEL_IMPROVED == "true" }
+                expression { env.MODEL_IMPROVED == "false" }
             }
             steps {
                 script {
