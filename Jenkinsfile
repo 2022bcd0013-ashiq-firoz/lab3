@@ -8,22 +8,19 @@ pipeline {
         DOCKER_IMAGE = "2022bcd0013ashiqfiroz/wine-quality-app-jenkins"
         CURRENT_ACCURACY = "0"
         MODEL_IMPROVED = "false"
+        ARTIFACTS_DIR = "training-artifacts-py3.11"
     }
 
     stages {
 
-        /* ----------------------------- */
         stage('Checkout') {
-        /* ----------------------------- */
             steps {
                 git branch: 'main',
                     url: 'https://github.com/2022bcd0013-ashiq-firoz/lab3.git'
             }
         }
 
-        /* ------------------------------------------- */
         stage('Setup Python Virtual Environment') {
-        /* ------------------------------------------- */
             steps {
                 sh '''
                     python3 -m venv $VENV_DIR
@@ -34,23 +31,33 @@ pipeline {
             }
         }
 
-        /* ---------------------- */
         stage('Train Model') {
-        /* ---------------------- */
             steps {
                 sh '''
                     . $VENV_DIR/bin/activate
                     mkdir -p app/artifacts
+                    mkdir -p ${ARTIFACTS_DIR}
                     python Script/train.py
                 '''
             }
         }
 
-        /* ---------------------- */
+        // NEW: Archive model artifacts
+        stage('Archive Model Artifacts') {
+            steps {
+                script {
+                    // Archive the trained model files
+                    archiveArtifacts artifacts: "${ARTIFACTS_DIR}/**/*", allowEmptyArchive: false
+                    
+                    // Also stash for use in later stages
+                    stash includes: "${ARTIFACTS_DIR}/**/*", name: 'model-artifacts'
+                }
+            }
+        }
+
         stage('Read Accuracy') {
             steps {
                 script {
-
                     if (!fileExists(env.METRICS_FILE)) {
                         echo "WARNING: Metrics file not found. Setting accuracy to 0."
                         env.CURRENT_ACCURACY = "0"
@@ -73,11 +80,9 @@ pipeline {
             }
         }
 
-
         stage('Compare Accuracy') {
             steps {
                 script {
-
                     float current = env.CURRENT_ACCURACY.toFloat()
                     float best = 0.0
                     boolean improved = false
@@ -105,20 +110,19 @@ pipeline {
                     }
 
                     echo "MODEL_IMPROVED = ${env.MODEL_IMPROVED}"
-                    
                 }
             }
         }
 
-
-        /* ----------------------------------------- */
         stage('Build Docker Image') {
-        /* ----------------------------------------- */
             when {
-                expression { env.MODEL_IMPROVED == "false" }
+                expression { env.MODEL_IMPROVED == "false" }  // FIXED: was "false"
             }
             steps {
                 script {
+                    // Unstash model artifacts before building
+                    unstash 'model-artifacts'
+                    
                     docker.withRegistry('', 'dockerhub-creds') {
                         sh """
                         docker build -t ${DOCKER_IMAGE}:${BUILD_NUMBER} .
@@ -129,11 +133,9 @@ pipeline {
             }
         }
 
-        /* ----------------------------------------- */
         stage('Push Docker Image') {
-        /* ----------------------------------------- */
             when {
-                expression { env.MODEL_IMPROVED == "false" }
+                expression { env.MODEL_IMPROVED == "false" }  // FIXED: was "false"
             }
             steps {
                 script {
