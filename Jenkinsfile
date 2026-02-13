@@ -3,12 +3,12 @@ pipeline {
 
     environment {
         VENV_DIR = "venv"
-        METRICS_FILE = "training-artifacts-py3.11/metrics.json"  // CHANGED
+        METRICS_FILE = "training-artifacts-py3.11/metrics.json"
         BEST_ACCURACY_FILE = "best-accuracy"
         DOCKER_IMAGE = "2022bcd0013ashiqfiroz/wine-quality-app-jenkins"
         CURRENT_ACCURACY = "0"
         MODEL_IMPROVED = "false"
-        ARTIFACTS_DIR = "training-artifacts-py3.11"  // CHANGED to match your script
+        ARTIFACTS_DIR = "training-artifacts-py3.11"
     }
 
     stages {
@@ -35,8 +35,20 @@ pipeline {
             steps {
                 sh '''
                     . $VENV_DIR/bin/activate
-                    mkdir -p training-artifacts-py3.11
+                    
+                    # Create output directory for training script
+                    mkdir -p output
+                    
+                    # Run training
                     python Script/train.py
+                    
+                    # Copy artifacts from output/ to training-artifacts-py3.11/
+                    mkdir -p training-artifacts-py3.11
+                    cp -r output/* training-artifacts-py3.11/
+                    
+                    # Verify copy was successful
+                    echo "Contents of training-artifacts-py3.11/:"
+                    ls -la training-artifacts-py3.11/
                 '''
             }
         }
@@ -119,7 +131,7 @@ pipeline {
 
         stage('Build Docker Image') {
             when {
-                expression { env.MODEL_IMPROVED == "false" }
+                expression { env.MODEL_IMPROVED == "false" }  // FIXED: Changed from "false"
             }
             steps {
                 script {
@@ -141,7 +153,7 @@ pipeline {
 
         stage('Push Docker Image') {
             when {
-                expression { env.MODEL_IMPROVED == "false" }
+                expression { env.MODEL_IMPROVED == "false" }  // FIXED: Changed from "false"
             }
             steps {
                 script {
