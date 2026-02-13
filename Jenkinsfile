@@ -74,38 +74,44 @@ pipeline {
         }
 
 
-        /* -------------------------- */
         stage('Compare Accuracy') {
-        /* -------------------------- */
             steps {
                 script {
 
-                    def bestAccuracy = "0"
+                    float current = env.CURRENT_ACCURACY.toFloat()
+                    float best = 0.0
+                    boolean improved = false
 
-                    if (fileExists(env.BEST_ACCURACY_FILE)) {
-                        bestAccuracy = readFile(env.BEST_ACCURACY_FILE).trim()
-                        echo "Existing Best Accuracy: ${bestAccuracy}"
+                    if (!fileExists(env.BEST_ACCURACY_FILE)) {
+                        echo "No baseline found. First run → promoting model."
+                        improved = true
                     } else {
-                        echo "No baseline found. First run — auto-promoting model."
-                        writeFile file: env.BEST_ACCURACY_FILE, text: env.CURRENT_ACCURACY
-                        env.MODEL_IMPROVED = "true"
-                        return
+                        best = readFile(env.BEST_ACCURACY_FILE).trim().toFloat()
+                        echo "Best Accuracy: ${best}"
+
+                        if (current > best) {
+                            improved = true
+                            echo "Model Improved!"
+                        } else {
+                            echo "Model did NOT improve."
+                        }
                     }
 
-                    if (env.CURRENT_ACCURACY.toFloat() > bestAccuracy.toFloat()) {
-                        echo "Model Improved!"
+                    if (improved) {
+                        writeFile file: env.BEST_ACCURACY_FILE, text: "${current}"
                         env.MODEL_IMPROVED = "true"
-                        writeFile file: env.BEST_ACCURACY_FILE, text: env.CURRENT_ACCURACY
                     } else {
-                        echo "Model did NOT improve."
                         env.MODEL_IMPROVED = "false"
                     }
+
+                    echo "MODEL_IMPROVED = ${env.MODEL_IMPROVED}"
                 }
             }
         }
 
+
         /* ----------------------------------------- */
-        stage('Build Docker Image (Conditional)') {
+        stage('Build Docker Image') {
         /* ----------------------------------------- */
             when {
                 expression { env.MODEL_IMPROVED == "true" }
@@ -123,7 +129,7 @@ pipeline {
         }
 
         /* ----------------------------------------- */
-        stage('Push Docker Image (Conditional)') {
+        stage('Push Docker Image') {
         /* ----------------------------------------- */
             when {
                 expression { env.MODEL_IMPROVED == "true" }
